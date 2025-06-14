@@ -1,8 +1,9 @@
 
-import React from 'react';
-import { AgentUI } from '@ag-ui/react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Phone, Users, Clock } from 'lucide-react';
+import { BarChart3, Phone, Users, Clock, MessageSquare, Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface AgentInterfaceProps {
   userData: {
@@ -11,6 +12,86 @@ interface AgentInterfaceProps {
     propertyTypes?: string;
   };
 }
+
+// Mock AgentUI component que simula la funcionalidad de AG-UI
+const MockAgentUI = ({ userData }: { userData: any }) => {
+  const [messages, setMessages] = useState([
+    {
+      id: '1',
+      content: `¡Hola! Soy tu asistente de IA personalizado para ${userData.businessName || 'tu inmobiliaria'}. ¿En qué puedo ayudarte hoy?`,
+      sender: 'ai' as const
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+
+    const userMessage = { id: Date.now().toString(), content: inputValue, sender: 'user' as const };
+    setMessages(prev => [...prev, userMessage]);
+
+    // Simular respuesta del agente
+    setTimeout(() => {
+      let response = '';
+      if (inputValue.toLowerCase().includes('dashboard') || inputValue.toLowerCase().includes('estadísticas')) {
+        response = '📊 Perfecto! Te estoy mostrando el dashboard con las estadísticas en tiempo real de tu agente.';
+      } else if (inputValue.toLowerCase().includes('llamada')) {
+        response = '📞 ¡Excelente! Puedo hacer una llamada de demostración. ¿A qué número te gustaría que llame?';
+      } else {
+        response = `Como asistente de ${userData.businessName}, puedo ayudarte con consultas sobre ${userData.propertyTypes} en ${userData.location}. ¿Qué información necesitas?`;
+      }
+      
+      const aiMessage = { id: (Date.now() + 1).toString(), content: response, sender: 'ai' as const };
+      setMessages(prev => [...prev, aiMessage]);
+    }, 1000);
+
+    setInputValue('');
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5" />
+          Agente de IA - {userData.businessName}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="h-64 overflow-y-auto bg-gray-50 p-4 rounded-lg space-y-2">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                    message.sender === 'user'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white border text-gray-900'
+                  }`}
+                >
+                  {message.content}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Escribe tu mensaje..."
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            />
+            <Button onClick={handleSendMessage} size="sm">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const AgentInterface = ({ userData }: AgentInterfaceProps) => {
   // Mock data para la demo del dashboard
@@ -21,22 +102,9 @@ const AgentInterface = ({ userData }: AgentInterfaceProps) => {
     scheduledVisits: 8
   };
 
-  const handleAgentMessage = (message: any) => {
-    console.log('Agent message:', message);
-  };
-
   return (
     <div className="space-y-6">
-      <AgentUI
-        onMessage={handleAgentMessage}
-        config={{
-          apiKey: process.env.REACT_APP_OPENAI_API_KEY || 'demo-key',
-          model: 'gpt-4',
-          systemPrompt: `Eres un asistente especializado para ${userData.businessName || 'esta inmobiliaria'}. 
-          Puedes mostrar dashboards, estadísticas y ayudar con la configuración del agente de voz.
-          Cuando el usuario pida ver estadísticas o dashboard, puedes mostrar componentes dinámicos.`
-        }}
-      />
+      <MockAgentUI userData={userData} />
       
       {/* Dashboard de muestra que se puede mostrar dinámicamente */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
