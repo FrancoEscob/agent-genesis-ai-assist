@@ -1,17 +1,19 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Send, Phone, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSession } from '../hooks/useSession';
+import { agentService } from '../services/AgentService';
+import AgentInterface from '../components/AgentInterface';
 
 interface Message {
   id: string;
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
-  component?: any; // For dynamic AG-UI components
+  component?: React.ReactNode;
 }
 
 interface UserData {
@@ -25,6 +27,7 @@ interface UserData {
 
 const Chat = () => {
   const navigate = useNavigate();
+  const { sessionId, session, createSession } = useSession();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -37,6 +40,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userData, setUserData] = useState<UserData>({});
   const [currentStep, setCurrentStep] = useState(0);
+  const [showAgentInterface, setShowAgentInterface] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const onboardingSteps = [
@@ -55,7 +59,7 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const addMessage = (content: string, sender: 'user' | 'ai', component?: any) => {
+  const addMessage = (content: string, sender: 'user' | 'ai', component?: React.ReactNode) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       content,
@@ -74,11 +78,33 @@ const Chat = () => {
     addMessage(userMessage, 'user');
     setIsLoading(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
-      handleOnboarding(userMessage);
-      setIsLoading(false);
-    }, 1000);
+    // Si ya tenemos sesión activa, usar AG-UI para responder
+    if (showAgentInterface && sessionId) {
+      // Aquí AG-UI manejará las respuestas dinámicas
+      setTimeout(() => {
+        handleDynamicResponse(userMessage);
+        setIsLoading(false);
+      }, 1000);
+    } else {
+      // Proceso de onboarding normal
+      setTimeout(() => {
+        handleOnboarding(userMessage);
+        setIsLoading(false);
+      }, 1000);
+    }
+  };
+
+  const handleDynamicResponse = (userMessage: string) => {
+    // Respuestas dinámicas post-onboarding
+    if (userMessage.toLowerCase().includes('dashboard') || userMessage.toLowerCase().includes('estadísticas')) {
+      addMessage('Aquí tienes tu dashboard en tiempo real:', 'ai', 
+        <AgentInterface userData={userData} />
+      );
+    } else if (userMessage.toLowerCase().includes('llamada') || userMessage.toLowerCase().includes('teléfono')) {
+      addMessage('¿Te gustaría que haga una llamada de prueba para mostrar cómo funciona tu agente?', 'ai');
+    } else {
+      addMessage('¿En qué más puedo ayudarte? Puedes pedirme que te muestre el dashboard, haga una llamada de prueba, o ajuste la configuración de tu agente.', 'ai');
+    }
   };
 
   const handleOnboarding = (userResponse: string) => {
@@ -112,10 +138,26 @@ const Chat = () => {
   };
 
   const createAgent = () => {
-    addMessage('🤖 Agente creado exitosamente! Ahora voy a llamarte para que puedas experimentar cómo tu nuevo agente interactúa con tus clientes potenciales...', 'ai');
+    addMessage('🤖 Agente creado exitosamente! Creando tu sesión personalizada...', 'ai');
     
+    // Crear sesión en el sistema
+    const newSessionId = createSession({
+      businessName: userData.businessName || '',
+      website: userData.website,
+      location: userData.location || '',
+      propertyTypes: userData.propertyTypes || '',
+      workingHours: userData.workingHours || '',
+      phone: userData.phone || '',
+      apiProvider: 'openai'
+    });
+
     setTimeout(() => {
-      addMessage('📞 Llamando a tu número en 3... 2... 1...', 'ai');
+      addMessage('📞 Ahora voy a hacer una llamada de demostración para que veas tu agente en acción...', 'ai');
+      
+      // Simular llamada
+      if (userData.phone) {
+        agentService.simulateCall(newSessionId, userData.phone);
+      }
       
       setTimeout(() => {
         addMessage(`¡Increíble! ¿Viste cómo tu agente de IA puede manejar consultas sobre ${userData.propertyTypes} en ${userData.location}? 
@@ -126,7 +168,9 @@ Esto es solo una muestra básica. Con nuestros planes puedes:
 🚀 **Plan Pro ($500/mes)**: 1000 minutos, CRM integrado, personalización completa, agenda automática  
 💎 **Plan Max ($750/mes)**: 2000 minutos, WhatsApp bot, CRM avanzado
 
-¿Te gustaría que programe una llamada con nuestro equipo para personalizar tu agente o prefieres empezar con algún plan directamente?`, 'ai');
+Ahora puedes interactuar conmigo para personalizar tu agente, ver estadísticas o hacer más pruebas. ¡Prueba pedirme que te muestre el dashboard!`, 'ai');
+        
+        setShowAgentInterface(true);
       }, 3000);
     }, 2000);
   };
@@ -156,7 +200,7 @@ Esto es solo una muestra básica. Con nuestros planes puedes:
             <span className="font-semibold text-gray-900">CallFlow</span>
           </div>
           <div className="text-sm text-gray-500">
-            Creando tu agente de IA...
+            {showAgentInterface ? `Sesión: ${sessionId?.substring(0, 8)}...` : 'Creando tu agente de IA...'}
           </div>
         </div>
       </header>
@@ -178,7 +222,7 @@ Esto es solo una muestra básica. Con nuestros planes puedes:
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 {message.component && (
-                  <div className="mt-2">
+                  <div className="mt-4 w-full">
                     {message.component}
                   </div>
                 )}
@@ -210,7 +254,7 @@ Esto es solo una muestra básica. Con nuestros planes puedes:
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Escribe tu respuesta..."
+              placeholder={showAgentInterface ? "Prueba: 'muestra el dashboard' o 'haz una llamada'" : "Escribe tu respuesta..."}
               className="flex-1"
               disabled={isLoading}
             />
