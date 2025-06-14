@@ -13,13 +13,19 @@ interface AgentInterfaceProps {
   };
 }
 
+interface Message {
+  id: string;
+  content: string;
+  sender: 'ai' | 'user';
+}
+
 // Mock AgentUI component que simula la funcionalidad de AG-UI
 const MockAgentUI = ({ userData }: { userData: any }) => {
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       content: `¡Hola! Soy tu asistente de IA personalizado para ${userData.businessName || 'tu inmobiliaria'}. ¿En qué puedo ayudarte hoy?`,
-      sender: 'ai' as const
+      sender: 'ai'
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -27,7 +33,7 @@ const MockAgentUI = ({ userData }: { userData: any }) => {
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
-    const userMessage = { id: Date.now().toString(), content: inputValue, sender: 'user' as const };
+    const userMessage: Message = { id: Date.now().toString(), content: inputValue, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
 
     // Simular respuesta del agente
@@ -41,7 +47,7 @@ const MockAgentUI = ({ userData }: { userData: any }) => {
         response = `Como asistente de ${userData.businessName}, puedo ayudarte con consultas sobre ${userData.propertyTypes} en ${userData.location}. ¿Qué información necesitas?`;
       }
       
-      const aiMessage = { id: (Date.now() + 1).toString(), content: response, sender: 'ai' as const };
+      const aiMessage: Message = { id: (Date.now() + 1).toString(), content: response, sender: 'ai' };
       setMessages(prev => [...prev, aiMessage]);
     }, 1000);
 
